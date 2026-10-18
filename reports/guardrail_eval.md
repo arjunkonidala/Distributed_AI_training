@@ -1,6 +1,6 @@
 # CareFlow Guardrail Evaluation
 
-- Run: 2026-10-16 12:22
+- Run: 2026-10-18 08:13
 - Mode: offline (input guard only, no LLM)
 - Cases: 60 from `tests/guardrail_eval.jsonl`
 

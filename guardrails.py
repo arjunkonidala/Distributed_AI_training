@@ -79,6 +79,9 @@ EMERGENCY_PATTERNS = [
     r"\bstroke\b", r"\bface (?:is )?(?:drooping|droop|numb)\b", r"\bnumbness in (?:my |the )?(?:face|arm)\b",
     r"\bslurred speech\b", r"\bseizure", r"\bconvuls", r"\boverdos", r"\banaphyla",
     r"\bthroat (?:is )?(?:closing|swelling)\b", r"\b(?:coughing|vomiting) (?:up )?blood\b",
+    r"\bstab(?:bed|bing)?\b(?! (?:pain|ache|sensation|feeling)s?\b)", r"\bstab wound", r"\b(?:been |got |was |were )shot\b", r"\bgunshot\b",
+    r"\b(?:hit|run over|knocked down) by (?:a |an )?(?:car|bus|truck|bike|vehicle|lorry)\b", r"\b(?:road|car|bike|traffic) accident\b",
+    r"\bpoison(?:ed|ing)\b", r"\bchoking\b", r"\bsevere burns?\b",
 ]
 
 INJECTION_PATTERNS = [

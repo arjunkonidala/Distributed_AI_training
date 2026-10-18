@@ -440,9 +440,10 @@ Guidelines:
 
     triage_text = safe_llm_invoke(triage_system_prompt, guard.wrap_patient_message(user_input), history=history, agent_name="triage")
 
-    # Triage event: an emergency turn emails the patient's guardian (non-blocking, audited in guardian_alerts)
+    # Triage event: an emergency turn emails the patient's guardian (non-blocking, audited in guardian_alerts).
+    # Emergency = the input guard's red-flag patterns, or triage itself directing the patient to emergency services.
     guardian_alert = ""
-    if state.get("guard_action") == "emergency" or guard.detect_emergency(user_input):
+    if state.get("guard_action") == "emergency" or guard.detect_emergency(user_input) or guard.EMERGENCY_LINE_RE.search(triage_text):
         try:
             guardian_alert = guardian_notifier.notify_guardian_of_triage(state.get("username", ""), state.get("session_id", ""), user_input)
         except Exception as e:

@@ -80,6 +80,19 @@ class GuardianAlertTests(unittest.TestCase):
         notify.assert_called_once_with("pat", self.session_id, "I have crushing chest pain and can't breathe")
         self.assertEqual(result["guardian_alert"], "queued")
 
+    def test_triage_reply_directing_to_emergency_services_alerts(self):
+        with mock.patch.object(orchestrator, "safe_llm_invoke", return_value="Call 112 immediately and press on the wound."), \
+             mock.patch.object(guardian_notifier, "notify_guardian_of_triage", return_value="queued") as notify:
+            orchestrator.triage_agent_node(self._triage_state("my friend says I look really pale and I'm sweating", "allow"))
+        notify.assert_called_once()
+
+    def test_injury_emergencies_are_detected(self):
+        import guardrails as guard
+        for text in ["hey someone stabbed me help", "I've been shot", "I was hit by a car", "my son is choking", "I think I was poisoned"]:
+            self.assertTrue(guard.detect_emergency(text), text)
+        for text in ["I have a stabbing pain in my side", "sharp stabbing pains in my back"]:
+            self.assertFalse(guard.detect_emergency(text), text)
+
     def test_non_emergency_triage_does_not_alert(self):
         with mock.patch.object(orchestrator, "safe_llm_invoke", return_value="This sounds routine."), \
              mock.patch.object(guardian_notifier, "notify_guardian_of_triage") as notify:
