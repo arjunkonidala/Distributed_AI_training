@@ -13,6 +13,7 @@ from typing import Any, Dict
 from urllib.parse import parse_qs, urlparse
 
 import database as db
+import guardian_notifier
 from orchestrator import run_orchestrator
 
 ROOT = Path(__file__).parent
@@ -37,6 +38,9 @@ class CareFlowHandler(SimpleHTTPRequestHandler):
         if parsed.path == "/api/memory":
             self.handle_get_memory(parsed.query)
             return
+        if parsed.path == "/api/guardian/alerts":
+            self.handle_get_guardian_alerts(parsed.query)
+            return
         # Default static file handler
         return super().do_GET()
 
@@ -44,6 +48,9 @@ class CareFlowHandler(SimpleHTTPRequestHandler):
         parsed = urlparse(self.path)
         if parsed.path == "/api/profile":
             self.handle_create_profile()
+            return
+        if parsed.path == "/api/profile/guardian":
+            self.handle_update_guardian()
             return
         if parsed.path == "/api/conversations":
             self.handle_create_conversation()
@@ -98,6 +105,10 @@ class CareFlowHandler(SimpleHTTPRequestHandler):
         if not username or not name:
             self.send_json({"error": "Username and name are required."}, status=HTTPStatus.BAD_REQUEST)
             return
+        guardian_email = (body.get("guardian_email") or "").strip()
+        if guardian_email and not guardian_notifier.is_valid_email(guardian_email):
+            self.send_json({"error": "Guardian email is not a valid email address."}, status=HTTPStatus.BAD_REQUEST)
+            return
 
         existing = db.get_profile(username)
         if existing:
@@ -112,9 +123,28 @@ class CareFlowHandler(SimpleHTTPRequestHandler):
             date_of_birth=body.get("date_of_birth"),
             height=body.get("height"),
             weight=body.get("weight"),
+            guardian_name=(body.get("guardian_name") or "").strip(),
+            guardian_email=guardian_email,
         )
         record = db.get_full_patient_record(username)
         self.send_json({"record": record})
+
+    def handle_update_guardian(self):
+        body = self.read_json_body()
+        username = (body.get("username") or "").strip()
+        guardian_name = (body.get("guardian_name") or "").strip()
+        guardian_email = (body.get("guardian_email") or "").strip()
+        if not username:
+            self.send_json({"error": "Username is required."}, status=HTTPStatus.BAD_REQUEST)
+            return
+        if guardian_email and not guardian_notifier.is_valid_email(guardian_email):
+            self.send_json({"error": "Guardian email is not a valid email address."}, status=HTTPStatus.BAD_REQUEST)
+            return
+        if not db.get_profile(username):
+            self.send_json({"error": "Profile not found."}, status=HTTPStatus.NOT_FOUND)
+            return
+        db.update_guardian_contact(username, guardian_name, guardian_email)
+        self.send_json({"record": db.get_full_patient_record(username, active_conv_id=(body.get("conversation_id") or None))})
 
     # ------------------ CONVERSATION ENDPOINTS ------------------
 
@@ -203,11 +233,13 @@ class CareFlowHandler(SimpleHTTPRequestHandler):
             response_text = agent_result.get("response_text", "I've noted your update.")
             categories = agent_result.get("categories", [])
             guardrail_flags = agent_result.get("guardrail_flags", [])
+            guardian_alert = agent_result.get("guardian_alert", "")
         except Exception as e:
             print(f"[Chat Error in Orchestrator]: {e}", file=sys.stderr)
             response_text = "I've recorded that detail in your care record. How else can I help support you today?"
             categories = ["symptoms"]
             guardrail_flags = []
+            guardian_alert = ""
 
         # 4. Save final LangGraph conversational response IMMEDIATELY to chat_messages table
         db.save_chat_message(
@@ -238,6 +270,7 @@ class CareFlowHandler(SimpleHTTPRequestHandler):
             "category": categories[0] if categories else "symptoms",
             "categories": categories,
             "guardrail_flags": guardrail_flags,
+            "guardian_alert": guardian_alert,
         })
 
     # ------------------ GUARDRAIL AUDIT ------------------
@@ -249,6 +282,14 @@ class CareFlowHandler(SimpleHTTPRequestHandler):
             self.send_json({"error": "Missing username parameter."}, status=HTTPStatus.BAD_REQUEST)
             return
         self.send_json({"events": db.get_guardrail_events(username)})
+
+    def handle_get_guardian_alerts(self, query_string: str):
+        params = parse_qs(query_string)
+        username = (params.get("username") or [""])[0].strip()
+        if not username:
+            self.send_json({"error": "Missing username parameter."}, status=HTTPStatus.BAD_REQUEST)
+            return
+        self.send_json({"alerts": db.get_guardian_alerts(username=username)})
 
     # ------------------ LONG-TERM MEMORY ENDPOINTS ------------------
 

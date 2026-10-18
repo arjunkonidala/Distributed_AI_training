@@ -89,3 +89,4 @@ class CareFlowState(TypedDict):
     agent_responses: Annotated[dict, operator.ior]  # Stores outputs from parallel agents
     parallel_agents: Annotated[list, operator.add]  # Tracks all agents executed in parallel
     rag_report_context: Optional[str]  # Grounding context retrieved for medical report RAG
+    guardian_alert: str  # Guardian email status for an emergency triage event ('queued', 'no_guardian', ...)

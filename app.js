@@ -24,11 +24,22 @@ function showChat(record) {
   chatView.classList.remove('hidden');
   document.querySelector('#patient-name').textContent = record.profile.name;
   document.querySelector('#patient-meta').textContent = [record.profile.date_of_birth && `DOB ${record.profile.date_of_birth}`, record.profile.height, record.profile.weight].filter(Boolean).join(' · ') || 'Care record started today';
+  renderGuardian();
   renderConversationList();
   renderConversation(record.conversation);
   renderRecord();
   document.querySelector('#chat-input').focus();
 }
+function renderGuardian() {
+  const { guardian_name: name, guardian_email: email } = state.record.profile;
+  document.querySelector('#guardian-summary').textContent = email ? `${name || 'Guardian'} · ${email} · emailed if triage detects an emergency` : 'No guardian added. Add one to have them emailed if triage detects an emergency.';
+  document.querySelector('#guardian-name').value = name || '';
+  document.querySelector('#guardian-email').value = email || '';
+}
+const GUARDIAN_ALERT_NOTES = {
+  queued: 'I am also emailing your guardian so they know you may need help.',
+  not_configured: 'I could not email your guardian because email alerts are not set up on this CareFlow server.',
+};
 function renderConversation(conversation) {
   messages.innerHTML = '';
   if (conversation?.messages?.length) conversation.messages.forEach(addMessage);
@@ -169,9 +180,25 @@ lookupForm.addEventListener('submit', async event => {
 createForm.addEventListener('submit', async event => {
   event.preventDefault();
   try {
-    const result = await request('/api/profile', { method: 'POST', body: JSON.stringify({ username: usernameInput.value.trim(), name: document.querySelector('#new-name').value, date_of_birth: document.querySelector('#new-dob').value, height: document.querySelector('#new-height').value, weight: document.querySelector('#new-weight').value }) });
+    const result = await request('/api/profile', { method: 'POST', body: JSON.stringify({ username: usernameInput.value.trim(), name: document.querySelector('#new-name').value, date_of_birth: document.querySelector('#new-dob').value, height: document.querySelector('#new-height').value, weight: document.querySelector('#new-weight').value, guardian_name: document.querySelector('#new-guardian-name').value, guardian_email: document.querySelector('#new-guardian-email').value }) });
     showChat(result.record);
   } catch (error) { status.textContent = error.message; }
+});
+
+document.querySelector('#edit-guardian').addEventListener('click', () => {
+  document.querySelector('#guardian-form').classList.toggle('hidden');
+  document.querySelector('#guardian-status').textContent = '';
+});
+
+document.querySelector('#guardian-form').addEventListener('submit', async event => {
+  event.preventDefault();
+  const guardianStatus = document.querySelector('#guardian-status');
+  try {
+    const result = await request('/api/profile/guardian', { method: 'POST', body: JSON.stringify({ username: state.username, conversation_id: state.conversationId, guardian_name: document.querySelector('#guardian-name').value, guardian_email: document.querySelector('#guardian-email').value }) });
+    state.record = result.record;
+    renderGuardian();
+    document.querySelector('#guardian-form').classList.add('hidden');
+  } catch (error) { guardianStatus.textContent = error.message; }
 });
 
 document.querySelector('#new-conversation').addEventListener('click', async () => {
@@ -230,6 +257,7 @@ async function handleSendMessage(event) {
       const lastMsg = conv.messages[conv.messages.length - 1];
       if (lastMsg && lastMsg.role === 'assistant') addMessage(lastMsg);
     }
+    if (GUARDIAN_ALERT_NOTES[result.guardian_alert]) addMessage({ role: 'assistant', text: GUARDIAN_ALERT_NOTES[result.guardian_alert] });
     
     renderConversationList();
     renderRecord();

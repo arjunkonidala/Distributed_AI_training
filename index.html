@@ -5,7 +5,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>CareFlow</title>
-  <link rel="stylesheet" href="styles.css?v=12">
+  <link rel="stylesheet" href="styles.css?v=13">
 </head>
 
 <body>
@@ -31,6 +31,9 @@
           <div class="form-grid"><label>Date of birth<input id="new-dob" type="date"></label><label>Height<input
                 id="new-height" placeholder="e.g. 170 cm"></label><label>Weight<input id="new-weight"
                 placeholder="e.g. 65 kg"></label></div>
+          <div class="form-grid guardian-grid"><label>Guardian name<input id="new-guardian-name"
+                placeholder="e.g. parent or carer"></label><label>Guardian email<input id="new-guardian-email"
+                type="email" placeholder="Alerted in an emergency"></label></div>
           <button type="submit">Create profile</button>
         </form>
       </div>
@@ -50,6 +53,18 @@
           <h2 id="patient-name"></h2>
           <p id="patient-meta" class="muted"></p>
         </div>
+        <section class="guardian-card" aria-label="Guardian contact">
+          <div class="chat-history-heading">
+            <h3>Guardian</h3><button id="edit-guardian" type="button">Edit</button>
+          </div>
+          <p id="guardian-summary" class="muted"></p>
+          <form id="guardian-form" class="guardian-form hidden">
+            <input id="guardian-name" placeholder="Guardian name">
+            <input id="guardian-email" type="email" placeholder="Guardian email">
+            <button type="submit">Save guardian</button>
+            <p id="guardian-status" class="status" role="status"></p>
+          </form>
+        </section>
         <section class="chat-history" aria-label="Conversations">
           <div class="chat-history-heading">
             <h3>Chats</h3><button id="new-conversation" type="button">+ New chat</button>
@@ -72,7 +87,7 @@
       </section>
     </section>
   </main>
-  <script src="app.js?v=12"></script>
+  <script src="app.js?v=13"></script>
 </body>
 
 </html>

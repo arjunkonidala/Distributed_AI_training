@@ -15,6 +15,7 @@ from langgraph.graph import END, START, StateGraph
 
 import database as db
 import guardrails as guard
+import guardian_notifier
 from models import CareFlowState, MedicalCondition, Reports, Symptoms, Treatment
 
 from dotenv import load_dotenv
@@ -438,13 +439,23 @@ Guidelines:
 """ + guard.SAFETY_RULES
 
     triage_text = safe_llm_invoke(triage_system_prompt, guard.wrap_patient_message(user_input), history=history, agent_name="triage")
-    
+
+    # Triage event: an emergency turn emails the patient's guardian (non-blocking, audited in guardian_alerts)
+    guardian_alert = ""
+    if state.get("guard_action") == "emergency" or guard.detect_emergency(user_input):
+        try:
+            guardian_alert = guardian_notifier.notify_guardian_of_triage(state.get("username", ""), state.get("session_id", ""), user_input)
+        except Exception as e:
+            print(f"[Guardian Alert] Could not raise alert: {e}")
+            guardian_alert = "failed"
+
     return {
         "response_text": triage_text,
         "categories": ["symptoms"],
         "messages": [AIMessage(content=triage_text)],
         "agent_responses": {"triage": triage_text},
         "parallel_agents": ["triage"],
+        "guardian_alert": guardian_alert,
     }
 
 
@@ -755,6 +766,7 @@ def run_orchestrator(username: str, session_id: str, user_input: str, follow_up_
         "agent_responses": {},
         "parallel_agents": [],
         "rag_report_context": "",
+        "guardian_alert": "",
     }
 
     final_state = careflow_graph.invoke(initial_state)
@@ -771,4 +783,5 @@ def run_orchestrator(username: str, session_id: str, user_input: str, follow_up_
         "guard_action": final_state.get("guard_action", "allow"),
         "guardrail_flags": final_state.get("guardrail_flags", []),
         "parallel_agents": final_state.get("parallel_agents", []),
+        "guardian_alert": final_state.get("guardian_alert", ""),
     }

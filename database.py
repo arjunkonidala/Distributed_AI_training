@@ -57,7 +57,9 @@ def init_db():
                 height VARCHAR(50),
                 weight VARCHAR(50),
                 created_at VARCHAR(100) NOT NULL,
-                updated_at VARCHAR(100) NOT NULL
+                updated_at VARCHAR(100) NOT NULL,
+                guardian_name VARCHAR(255),
+                guardian_email VARCHAR(255)
             );
             CREATE TABLE IF NOT EXISTS conversations (
                 id VARCHAR(100) PRIMARY KEY,
@@ -132,6 +134,16 @@ def init_db():
                 last_consolidated_at VARCHAR(100) NOT NULL,
                 version INT DEFAULT 1
             );
+            CREATE TABLE IF NOT EXISTS guardian_alerts (
+                id VARCHAR(100) PRIMARY KEY,
+                username VARCHAR(100) NOT NULL,
+                session_id VARCHAR(100),
+                guardian_email VARCHAR(255),
+                status VARCHAR(30) NOT NULL,
+                detail TEXT,
+                excerpt TEXT,
+                created_at VARCHAR(100) NOT NULL
+            );
         """)
     else:
         cur.executescript("""
@@ -142,7 +154,9 @@ def init_db():
                 height TEXT,
                 weight TEXT,
                 created_at TEXT NOT NULL,
-                updated_at TEXT NOT NULL
+                updated_at TEXT NOT NULL,
+                guardian_name TEXT,
+                guardian_email TEXT
             );
             CREATE TABLE IF NOT EXISTS conversations (
                 id TEXT PRIMARY KEY,
@@ -223,9 +237,34 @@ def init_db():
                 version INTEGER DEFAULT 1,
                 FOREIGN KEY (username) REFERENCES patient_profiles(username) ON DELETE CASCADE
             );
+            CREATE TABLE IF NOT EXISTS guardian_alerts (
+                id TEXT PRIMARY KEY,
+                username TEXT NOT NULL,
+                session_id TEXT,
+                guardian_email TEXT,
+                status TEXT NOT NULL,
+                detail TEXT,
+                excerpt TEXT,
+                created_at TEXT NOT NULL
+            );
         """)
     
     conn.commit()
+
+    # Add guardian contact columns to patient_profiles tables created before guardian alerts existed
+    try:
+        if db_type == "postgres":
+            cur.execute("ALTER TABLE patient_profiles ADD COLUMN IF NOT EXISTS guardian_name VARCHAR(255)")
+            cur.execute("ALTER TABLE patient_profiles ADD COLUMN IF NOT EXISTS guardian_email VARCHAR(255)")
+        else:
+            cur.execute("PRAGMA table_info(patient_profiles)")
+            existing_cols = {row[1] for row in cur.fetchall()}
+            for col in ("guardian_name", "guardian_email"):
+                if col not in existing_cols:
+                    cur.execute(f"ALTER TABLE patient_profiles ADD COLUMN {col} TEXT")
+        conn.commit()
+    except Exception as e:
+        print(f"[DB] Guardian column migration note: {e}")
 
     # Automatically normalize any legacy onset rows to strict 24-hour YYYY-MM-DD HH:MM format
     try:
@@ -313,24 +352,37 @@ def get_profile(username: str) -> Optional[Dict[str, Any]]:
     if isinstance(row, sqlite3.Row):
         return dict(row)
     # Postgres RealDictRow or tuple
-    cols = ["username", "name", "date_of_birth", "height", "weight", "created_at", "updated_at"]
+    cols = ["username", "name", "date_of_birth", "height", "weight", "created_at", "updated_at", "guardian_name", "guardian_email"]
     return {cols[i]: row[i] for i in range(len(cols))} if isinstance(row, tuple) else dict(row)
 
 
-def create_profile(username: str, name: str, date_of_birth: Optional[str] = None, height: Optional[str] = None, weight: Optional[str] = None) -> Dict[str, Any]:
+def create_profile(username: str, name: str, date_of_birth: Optional[str] = None, height: Optional[str] = None, weight: Optional[str] = None, guardian_name: Optional[str] = None, guardian_email: Optional[str] = None) -> Dict[str, Any]:
     conn, db_type = get_connection()
     cur = conn.cursor()
     now = now_iso()
     placeholder = "%s" if db_type == "postgres" else "?"
     cur.execute(
-        f"INSERT INTO patient_profiles (username, name, date_of_birth, height, weight, created_at, updated_at) VALUES ({placeholder}, {placeholder}, {placeholder}, {placeholder}, {placeholder}, {placeholder}, {placeholder})",
-        (username.strip(), name.strip(), date_of_birth or None, height or None, weight or None, now, now)
+        f"INSERT INTO patient_profiles (username, name, date_of_birth, height, weight, created_at, updated_at, guardian_name, guardian_email) VALUES ({', '.join([placeholder] * 9)})",
+        (username.strip(), name.strip(), date_of_birth or None, height or None, weight or None, now, now, guardian_name or None, guardian_email or None)
     )
     conn.commit()
     conn.close()
     # Create initial conversation
     create_conversation(username, "New chat")
     return get_profile(username) # type: ignore
+
+
+def update_guardian_contact(username: str, guardian_name: Optional[str], guardian_email: Optional[str]) -> Optional[Dict[str, Any]]:
+    conn, db_type = get_connection()
+    cur = conn.cursor()
+    placeholder = "%s" if db_type == "postgres" else "?"
+    cur.execute(
+        f"UPDATE patient_profiles SET guardian_name = {placeholder}, guardian_email = {placeholder}, updated_at = {placeholder} WHERE LOWER(username) = LOWER({placeholder})",
+        (guardian_name or None, guardian_email or None, now_iso(), username)
+    )
+    conn.commit()
+    conn.close()
+    return get_profile(username)
 
 
 def get_conversations(username: str) -> List[Dict[str, Any]]:
@@ -713,6 +765,38 @@ def get_guardrail_events(username: Optional[str] = None, limit: int = 200) -> Li
         cur.execute(f"SELECT {', '.join(cols)} FROM guardrail_events WHERE LOWER(username) = LOWER({placeholder}) ORDER BY created_at DESC LIMIT {placeholder}", (username, limit))
     else:
         cur.execute(f"SELECT {', '.join(cols)} FROM guardrail_events ORDER BY created_at DESC LIMIT {placeholder}", (limit,))
+    rows = cur.fetchall()
+    conn.close()
+    return [dict(row) if isinstance(row, sqlite3.Row) else {cols[i]: row[i] for i in range(len(cols))} for row in rows]
+
+
+def log_guardian_alert(username: str, session_id: str, guardian_email: str, status: str, detail: str = "", excerpt: str = "") -> None:
+    """Audit trail of guardian email alerts raised by triage events (sent / failed / skipped)."""
+    conn, db_type = get_connection()
+    cur = conn.cursor()
+    placeholder = "%s" if db_type == "postgres" else "?"
+    cur.execute(
+        f"INSERT INTO guardian_alerts (id, username, session_id, guardian_email, status, detail, excerpt, created_at) VALUES ({', '.join([placeholder] * 8)})",
+        (uuid.uuid4().hex, username, session_id, guardian_email, status, (detail or "")[:500], (excerpt or "")[:300], now_iso())
+    )
+    conn.commit()
+    conn.close()
+
+
+def get_guardian_alerts(username: Optional[str] = None, session_id: Optional[str] = None, limit: int = 100) -> List[Dict[str, Any]]:
+    conn, db_type = get_connection()
+    cur = conn.cursor()
+    placeholder = "%s" if db_type == "postgres" else "?"
+    cols = ["id", "username", "session_id", "guardian_email", "status", "detail", "excerpt", "created_at"]
+    clauses, params = [], []
+    if username:
+        clauses.append(f"LOWER(username) = LOWER({placeholder})")
+        params.append(username)
+    if session_id:
+        clauses.append(f"session_id = {placeholder}")
+        params.append(session_id)
+    where = f"WHERE {' AND '.join(clauses)}" if clauses else ""
+    cur.execute(f"SELECT {', '.join(cols)} FROM guardian_alerts {where} ORDER BY created_at DESC LIMIT {placeholder}", (*params, limit))
     rows = cur.fetchall()
     conn.close()
     return [dict(row) if isinstance(row, sqlite3.Row) else {cols[i]: row[i] for i in range(len(cols))} for row in rows]

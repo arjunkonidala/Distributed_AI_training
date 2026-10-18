@@ -67,5 +67,5 @@ input:focus, textarea:focus { border-color:var(--green); box-shadow:0 0 0 3px #c
 .bubble tr:last-child td { border-bottom: none; }
 .bubble tr:nth-child(even) td { background: #f8fbf9; }
 .bubble strong { font-weight: 700; color: #112d26; }
-
-
+.guardian-grid { grid-template-columns:1fr 1fr; }.guardian-form { display:grid; gap:8px; margin-top:10px; }.guardian-form input { height:36px; font-size:13px; }.guardian-form button { height:36px; border-radius:6px; color:white; background:var(--green); font-weight:700; }.guardian-form .status { min-height:0; margin:0; font-size:12px; }
+@media (max-width:760px) { .guardian-grid { grid-template-columns:1fr; }.guardian-card { margin-bottom:14px; } }
