@@ -1,0 +1,6 @@
+.env
+*.db
+__pycache__/
+*.pyc
+reports/test_user_*
+reports/*_memory_profile.md

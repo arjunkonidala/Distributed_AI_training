@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>CareFlow</title>
+  <link rel="stylesheet" href="styles.css?v=12">
+</head>
+
+<body>
+  <main id="app">
+    <section id="lookup-view" class="lookup-shell" aria-labelledby="careflow-title">
+      <div class="wordmark"><span class="mark">+</span> CareFlow</div>
+      <div class="lookup-content">
+        <p class="eyebrow">Care coordination</p>
+        <h1 id="careflow-title">Your care, connected.</h1>
+        <p class="intro">Start with your CareFlow username to continue a conversation or create a private care record.
+        </p>
+        <form id="lookup-form" class="lookup-form">
+          <label for="username">Username</label>
+          <div class="input-row"><input id="username" autocomplete="username" placeholder="Enter your username"
+              required><button type="submit">Continue</button></div>
+          <p id="lookup-status" class="status" role="status"></p>
+        </form>
+        <form id="create-form" class="new-profile hidden">
+          <div class="section-heading">
+            <h2>Create your care record</h2><span>New profile</span>
+          </div>
+          <input id="new-name" placeholder="Full name" required>
+          <div class="form-grid"><label>Date of birth<input id="new-dob" type="date"></label><label>Height<input
+                id="new-height" placeholder="e.g. 170 cm"></label><label>Weight<input id="new-weight"
+                placeholder="e.g. 65 kg"></label></div>
+          <button type="submit">Create profile</button>
+        </form>
+      </div>
+      <p class="privacy-note">CareFlow records coordination details. It does not replace emergency or professional
+        medical care.</p>
+    </section>
+
+    <section id="chat-view" class="chat-shell hidden" aria-label="CareFlow chat">
+      <header class="topbar"><button id="switch-profile" class="icon-button" aria-label="Switch profile"
+          title="Switch profile">&#8592;</button>
+        <div class="wordmark"><span class="mark">+</span> CareFlow</div><span class="secure"><i></i> Private
+          record</span>
+      </header>
+      <aside class="patient-panel">
+        <div>
+          <p class="eyebrow">Care record</p>
+          <h2 id="patient-name"></h2>
+          <p id="patient-meta" class="muted"></p>
+        </div>
+        <section class="chat-history" aria-label="Conversations">
+          <div class="chat-history-heading">
+            <h3>Chats</h3><button id="new-conversation" type="button">+ New chat</button>
+          </div>
+          <nav id="conversation-list" class="conversation-list" aria-label="Chat history"></nav>
+        </section>
+        <nav class="record-nav" aria-label="Care record sections"><button class="record-tab active"
+            data-category="symptoms">Symptoms <span id="symptoms-count">0</span></button><button class="record-tab"
+            data-category="reports">Reports <span id="reports-count">0</span></button><button class="record-tab"
+            data-category="treatment">Treatment <span id="treatment-count">0</span></button><button class="record-tab"
+            data-category="timeline">Timeline <span id="timeline-count">0</span></button></nav>
+        <div id="form-details" class="form-details"></div>
+      </aside>
+      <section class="conversation">
+        <div id="messages" class="messages" aria-live="polite"></div>
+        <form id="chat-form" class="composer"><label class="sr-only" for="chat-input">Message CareFlow</label><textarea
+            id="chat-input" rows="1" placeholder="Tell me what is going on..."></textarea><button type="submit"
+            aria-label="Send message" title="Send message">&#8593;</button></form>
+        <p class="chat-note">CareFlow records your information for coordination and does not provide a diagnosis.</p>
+      </section>
+    </section>
+  </main>
+  <script src="app.js?v=12"></script>
+</body>
+
+</html>

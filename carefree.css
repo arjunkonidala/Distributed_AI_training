@@ -1,0 +1,119 @@
+/* Yellow CareFlow skin with a CSS nurse-cap logo. */
+:root {
+  --ink: #302d20;
+  --muted: #706b58;
+  --line: #e5c84b;
+  --paper: #fffbea;
+  --mint: #ffe34d;
+  --green: #3b765b;
+  --blue: #ffd92f;
+  --alert: #a83f31;
+}
+
+.mark {
+  position: relative;
+  display: inline-grid;
+  place-items: center;
+  width: 34px;
+  height: 28px;
+  margin-top: 8px;
+  background: #fffbea;
+  border: 2px solid var(--blue);
+  border-radius: 4px 4px 8px 8px;
+  color: var(--green);
+  font-size: 18px;
+  font-weight: 650;
+  line-height: 1;
+}
+
+.mark::before {
+  content: "";
+  position: absolute;
+  left: 3px;
+  right: 3px;
+  top: -10px;
+  height: 11px;
+  background: #fffbea;
+  border: 2px solid var(--green);
+  border-bottom: 0;
+  border-radius: 5px 5px 0 0;
+}
+
+.mark::after {
+  content: "";
+  position: absolute;
+  left: 8px;
+  right: 8px;
+  top: -5px;
+  height: 2px;
+  background: var(--green);
+}
+
+.mark span {
+  position: relative;
+  z-index: 1;
+}
+
+.lookup-shell {
+  background: linear-gradient(
+    117deg,
+    #fffbea 0%,
+    #fffbea 55%,
+    #ffe34d 55%,
+    #ffe34d 100%
+  );
+}
+
+.chat-shell {
+  background: #fffbea;
+}
+
+.patient-panel {
+  background: #fff4a8;
+}
+
+.bubble {
+  background: #fff4a8;
+}
+
+.record-tab {
+  color: #5c5949;
+}
+
+.record-tab:hover,
+.record-tab.active {
+  color: #315e49;
+}
+
+.record-tab span {
+  background: #fffbea;
+}
+
+.composer {
+  border-color: #d8bd38;
+}
+
+.composer:focus-within {
+  box-shadow: 0 0 0 3px #ffe34d;
+}
+
+.icon-button:hover {
+  background: #ffe34d;
+}
+
+.user .avatar {
+  background: #f5df72;
+  color: #5c5949;
+}
+
+@media (max-width: 760px) {
+  .lookup-shell {
+    background: linear-gradient(
+      155deg,
+      #fffbea 0%,
+      #fffbea 67%,
+      #ffe34d 67%,
+      #ffe34d 100%
+    );
+  }
+}
