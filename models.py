@@ -73,6 +73,16 @@ class MedicalCondition(BaseModel):
     insights_summary: Optional[str] = Field(None, description="Concise clinical coordination summary.")
 
 
+def _merge_categories(a: Optional[List[str]], b: Optional[List[str]]) -> List[str]:
+    list_a = a or []
+    list_b = b or []
+    return list(dict.fromkeys(list_a + list_b))
+
+
+def _last_str(a: Optional[str], b: Optional[str]) -> str:
+    return b if (b is not None and b != "") else (a or "")
+
+
 class CareFlowState(TypedDict):
     messages: Annotated[list[BaseMessage], add_messages]
     active_conditions: Annotated[dict, operator.ior]  # Stores extracted condition schemas
@@ -81,12 +91,13 @@ class CareFlowState(TypedDict):
     username: str
     session_id: str
     user_input: str
-    response_text: str
-    categories: list[str]
+    response_text: Annotated[str, _last_str]  # Handles concurrent updates from parallel branches
+    categories: Annotated[List[str], _merge_categories]  # Merges unique category updates
     guard_action: str  # allow | deflect | emergency | crisis | block (set by input_guard)
     guard_rule: str  # rule that produced guard_action, e.g. 'diagnosis_request'
     guardrail_flags: Annotated[list, operator.add]  # [{stage, rule, action}] from input/output guards
     agent_responses: Annotated[dict, operator.ior]  # Stores outputs from parallel agents
     parallel_agents: Annotated[list, operator.add]  # Tracks all agents executed in parallel
     rag_report_context: Optional[str]  # Grounding context retrieved for medical report RAG
-    guardian_alert: str  # Guardian email status for an emergency triage event ('queued', 'no_guardian', ...)
+    guardian_alert: Annotated[str, _last_str]  # Guardian email status for an emergency triage event
+
